@@ -1,4 +1,4 @@
-const puppeteer = require("puppeteer");
+const { chromium } = require("playwright");
 
 const SELECTOR_CONECTA = "div.value";
 const SELECTOR_ONE_LUZ = "div.value";
@@ -6,8 +6,20 @@ const SELECTOR_ONE_LUZ3 = "div.value";
 
 async function Endesa() {
   try {
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
+    const browser = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const context = await browser.newContext({
+      // Desactiva la descarga de imágenes, hojas de estilo y fuentes
+      fetchOptions: {
+        types: ["image", "stylesheet", "font"],
+        action: "block",
+      },
+    });
+
+    const page = await context.newPage();
     const result = {};
 
     const urlsAndSelectors = [
@@ -32,20 +44,15 @@ async function Endesa() {
     ];
 
     for (const { url, selectors } of urlsAndSelectors) {
-      // Navega a la página web
-      await page.goto(url);
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
 
       for (const [key, selector] of Object.entries(selectors)) {
-        // Espera a que el elemento que contiene el precio esté cargado en la página
         await page.waitForSelector(selector);
+        await page.waitForTimeout(1000);
 
-        // Espera a que el precio se actualice
-        await page.waitForTimeout(1000); // Ajusta el tiempo de espera según sea necesario
-
-        // Extrae los precios de todos los elementos que coinciden con el selector
-        const data = await page.$$eval(selector, (elements) => {
-          return elements.map((el) => el.innerText);
-        });
+        const data = await page.$$eval(selector, (elements) =>
+          elements.map((el) => el.innerText)
+        );
 
         const prices = [...data];
         prices.shift();
@@ -54,20 +61,21 @@ async function Endesa() {
           parseFloat(price.replace(",", "."))
         );
 
-        // Asigna los precios a las variables correspondientes
+        console.log("Endesa", pricesDecimals);
+
         if (key === "planConecta") {
-          result.precio_potencia_conecta_P1 = pricesDecimals[0] / 12;
-          result.precio_potencia_conecta_P2 = pricesDecimals[1] / 12;
+          result.precio_potencia_conecta_P1 = pricesDecimals[0] / 365;
+          result.precio_potencia_conecta_P2 = pricesDecimals[1] / 365;
           result.precio_energia_conecta = pricesDecimals[2];
           result.url_plan_conecta = url;
         } else if (key === "tarifaOne") {
-          result.precio_potencia_one_P1 = pricesDecimals[0] / 12;
-          result.precio_potencia_one_P2 = pricesDecimals[1] / 12;
+          result.precio_potencia_one_P1 = pricesDecimals[0] / 365;
+          result.precio_potencia_one_P2 = pricesDecimals[1] / 365;
           result.precio_tarifa_one = pricesDecimals[2];
           result.url_tarifa_one = url;
         } else if (key === "tarifaOne3") {
-          result.precio_potencia_one3_P1 = pricesDecimals[0] / 12;
-          result.precio_potencia_one3_P2 = pricesDecimals[1] / 12;
+          result.precio_potencia_one3_P1 = pricesDecimals[0] / 365;
+          result.precio_potencia_one3_P2 = pricesDecimals[1] / 365;
           result.precio_Punta = pricesDecimals[2];
           result.precio_Llano = pricesDecimals[3];
           result.precio_Valle = pricesDecimals[4];

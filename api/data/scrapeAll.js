@@ -6,18 +6,20 @@ const Iberdrola = require("./Iberdrola");
 
 const scrapeAll = async () => {
   try {
-    const naturgyResult = await Naturgy();
-    const repsolResult = await Repsol();
-    const totalEnergiesResult = await TotalEnergies();
-    const endesaResult = await Endesa();
-    const iberdrolaResult = await Iberdrola();
+    const results = await Promise.all([
+      Naturgy(),
+      Repsol(),
+      TotalEnergies(),
+      Endesa(),
+      Iberdrola(),
+    ]);
 
     return {
-      naturgyResult,
-      repsolResult,
-      totalEnergiesResult,
-      endesaResult,
-      iberdrolaResult,
+      naturgyResult: results[0],
+      repsolResult: results[1],
+      totalEnergiesResult: results[2],
+      endesaResult: results[3],
+      iberdrolaResult: results[4],
     };
   } catch (error) {
     console.error("Error in scraping:", error);

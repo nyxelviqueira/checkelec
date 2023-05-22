@@ -1,49 +1,49 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const { scrapeAll } = require("./data/scrapeAll");
 const db = require("./db");
 
-app.use(cors());
+var corsOptions = {
+  origin: function (origin, callback) {
+    var whiteList = [
+      "https://checkelec.ramonviqueira.com",
+      "http://localhost:3000",
+    ];
 
-app.get("/api/data", async (req, res) => {
+    if (whiteList.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+
+app.get("/api/data", (req, res) => {
   try {
     const currentDate = new Date().toDateString();
-    db.get(
-      "SELECT * FROM data WHERE date = ?",
-      currentDate,
-      async (err, row) => {
-        if (err) {
-          console.error(err.message);
-          res.status(500).json({ message: "Error al obtener los datos" });
-          return;
-        }
-
-        if (row) {
-          res.json(JSON.parse(row.apiData));
-        } else {
-          const apiData = await scrapeAll();
-          db.run(
-            "INSERT INTO data (date, apiData) VALUES (?, ?)",
-            currentDate,
-            JSON.stringify(apiData),
-            (err) => {
-              if (err) {
-                console.error(err.message);
-              }
-            }
-          );
-          res.json(apiData);
-        }
+    db.get("SELECT * FROM data WHERE date = ?", currentDate, (err, row) => {
+      if (err) {
+        console.error(err.message);
+        res.status(500).json({ message: "Error al obtener los datos" });
+        return;
       }
-    );
+
+      if (row) {
+        res.json(JSON.parse(row.apiData));
+      } else {
+        res.status(404).json({ message: "No data available for today" });
+      }
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error al obtener los datos" });
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

@@ -1,4 +1,4 @@
-const puppeteer = require("puppeteer");
+const { chromium } = require("playwright");
 
 const SELECTOR_AHORRO_PLUS = ".price";
 const SELECTOR_DH = ".price";
@@ -13,11 +13,21 @@ async function Repsol() {
     return null;
   }
   try {
+    const browser = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const context = await browser.newContext({
+      // Desactiva la descarga de imágenes, hojas de estilo y fuentes
+      fetchOptions: {
+        types: ["image", "stylesheet", "font"],
+        action: "block",
+      },
+    });
+
+    const page = await context.newPage();
     const result = {};
-
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-
     const ivaSwitch = '.switch input[type="checkbox"]';
 
     const urlsAndSelectors = [
@@ -33,7 +43,7 @@ async function Repsol() {
 
     for (const { url, selector } of urlsAndSelectors) {
       // Navega a la página web
-      await page.goto(url);
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
 
       // Cambia el estado del checkbox de impuestos (IVA)
       await page.evaluate((ivaSwitch) => {
@@ -54,21 +64,22 @@ async function Repsol() {
         return elements.map((el) => el.innerText);
       });
 
+      console.log("Repsol", prices);
       // Asigna los precios a las variables correspondientes
       if (
         url ===
         "https://www.repsol.es/particulares/hogar/luz-y-gas/tarifas/tarifa-ahorro-plus/"
       ) {
-        result.precio_potencia_P1 = extractNumber(prices[1]) * 30.41;
-        result.precio_potencia_P2 = extractNumber(prices[2]) * 30.41;
+        result.precio_potencia_P1 = extractNumber(prices[1]);
+        result.precio_potencia_P2 = extractNumber(prices[2]);
         result.precio_energia = extractNumber(prices[0]);
         result.url_ahorro = url;
       } else if (
         url ===
         "https://www.repsol.es/particulares/hogar/luz-y-gas/tarifas/tarifa-discriminacion-horaria/"
       ) {
-        result.precio_potencia_DH_P1 = extractNumber(prices[3]) * 30.41;
-        result.precio_potencia_DH_P2 = extractNumber(prices[4]) * 30.41;
+        result.precio_potencia_DH_P1 = extractNumber(prices[3]);
+        result.precio_potencia_DH_P2 = extractNumber(prices[4]);
         result.precio_Punta = extractNumber(prices[0]);
         result.precio_Llano = extractNumber(prices[1]);
         result.precio_Valle = extractNumber(prices[2]);
