@@ -47,9 +47,6 @@ async function Endesa() {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
 
       for (const [key, selector] of Object.entries(selectors)) {
-        await page.waitForSelector(selector);
-        await page.waitForTimeout(1000);
-
         const data = await page.$$eval(selector, (elements) =>
           elements.map((el) => el.innerText)
         );

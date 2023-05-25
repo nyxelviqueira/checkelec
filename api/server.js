@@ -1,7 +1,9 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const db = require("./db");
+
+// Importa la función updateDatabase y db desde db.js
+const { db, updateDatabase } = require("./db.js");
 
 var corsOptions = {
   origin: function (origin, callback) {
@@ -44,6 +46,15 @@ app.get("/api/data", (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+
+// Ejecuta updateDatabase inmediatamente al arrancar la aplicación
+// Espera a que se complete antes de comenzar a escuchar en el puerto
+updateDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to update database on startup:", err);
+  });

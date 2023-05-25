@@ -1,5 +1,4 @@
 const sqlite3 = require("sqlite3").verbose();
-const cron = require("node-cron");
 const { scrapeAll } = require("./data/scrapeAll");
 
 let db = new sqlite3.Database("./db/my_database.db", (err) => {
@@ -9,25 +8,7 @@ let db = new sqlite3.Database("./db/my_database.db", (err) => {
   console.log("Connected to the my_database database.");
 });
 
-async function resetDatabase() {
-  db.serialize(() => {
-    db.run("DROP TABLE IF EXISTS data", (err) => {
-      if (err) {
-        console.error(err.message);
-      }
-    });
-
-    db.run(
-      "CREATE TABLE IF NOT EXISTS data (date TEXT, apiData TEXT)",
-      (err) => {
-        if (err) {
-          console.error(err.message);
-        }
-      }
-    );
-  });
-
-  // Hacemos el scraping aquí, justo después de recrear la tabla
+async function updateDatabase() {
   let intentos = 0;
   let apiData;
   let success = false;
@@ -38,6 +19,14 @@ async function resetDatabase() {
       apiData = await scrapeAll();
       console.log("apiData:", apiData);
 
+      // Primero eliminamos las entradas antiguas
+      db.run("DELETE FROM data WHERE date != ?", currentDate, (err) => {
+        if (err) {
+          console.error(err.message);
+        }
+      });
+
+      // Luego insertamos los nuevos datos
       db.run(
         "INSERT INTO data (date, apiData) VALUES (?, ?)",
         currentDate,
@@ -48,24 +37,23 @@ async function resetDatabase() {
           }
         }
       );
+
       success = true;
     } catch (scrapeError) {
       // Manejo de error del scraping
       console.error("Error en la función scrapeAll:", scrapeError);
       intentos++;
+
+      // Esperar 1 minuto antes de intentar nuevamente
+      await new Promise((resolve) => setTimeout(resolve, 60000));
     }
   }
 
   if (!success) {
-    // Si después de 3 intentos aún falla enviamos na notificación
+    // Si después de 3 intentos aún falla enviamos una notificación
     console.error("Scraping failed after 3 attempts.");
   }
 }
-// Ejecuta resetDatabase una vez para inicializar la tabla data
-resetDatabase();
 
-// Ejecuta resetDatabase cada día a medianoche
-cron.schedule("0 0 * * *", resetDatabase);
-
-// Exporta db para que se pueda usar en otros archivos
-module.exports = db;
+// Exporta db y updateDatabase para que se pueda usar en otros archivos
+module.exports = { db, updateDatabase };

@@ -63,12 +63,6 @@ async function Naturgy() {
         }
       }, descuentoSwitch);
 
-      // Espera a que el elemento que contiene el precio esté cargado en la página
-      await page.waitForSelector(selector);
-
-      // Espera a que el precio se actualice
-      await page.waitForTimeout(1000); // Ajusta el tiempo de espera según sea necesario
-
       // Extrae los precios de todos los elementos que coinciden con el selector
       const prices = await page.$$eval(selector, (elements) => {
         return elements.map((el) => el.innerText);
